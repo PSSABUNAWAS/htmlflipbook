@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FlipBuku HTML5 — Viewer Seakan Flash</title>
 
-  <!-- ====== GAYA ====== -->
   <style>
     :root{
-      --bg:#0a2540;       /* biru gelap */
-      --panel:#103d68;    /* biru panel */
-      --accent:#ffd34d;   /* kuning aksen */
-      --text:#eef6ff;     /* teks */
-      --muted:#b8d3f0;    /* teks lembut */
+      --bg:#0a2540;
+      --panel:#103d68;
+      --accent:#ffd34d;
+      --text:#eef6ff;
+      --muted:#b8d3f0;
     }
     html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
@@ -28,7 +27,6 @@
     .btn[disabled]{opacity:.5;cursor:not-allowed}
     input[type="file"]{display:none}
     label.btn{display:inline-flex;align-items:center;gap:8px}
-    .file-note{font-size:12px;color:var(--muted);margin-top:6px}
     .wrap{height:calc(100% - 62px);display:grid;grid-template-columns:220px 1fr}
     .sidebar{background:#0e365f;border-right:1px solid #0b2846;padding:12px;overflow:auto}
     .sidebar h3{margin:6px 0 10px 0;font-size:14px;color:var(--muted)}
@@ -38,7 +36,7 @@
     .thumbs img{width:100%;border-radius:8px;border:1px solid #0b2846;cursor:pointer;aspect-ratio:3/4;object-fit:cover}
     .stage{position:relative;display:grid;place-items:center;background:#09223d}
     .book-wrap{transform-origin:center;transition:transform .15s ease}
-    #book{width:100%;height:100%;max-width:1800px;max-height:96vh}
+    #book{width:100%;height:100%;max-width:2200px;max-height:97vh}
     .statusbar{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.35);
       padding:6px 10px;border-radius:10px;font-size:12px;backdrop-filter:blur(4px)}
     .jumpto{display:flex;gap:6px;align-items:center;margin-top:8px}
@@ -46,36 +44,27 @@
       background:#0f3359;color:var(--text)}
     .hint{color:var(--muted);font-size:12px}
     .credit{position:fixed;right:10px;bottom:10px;font-size:12px;color:var(--muted)}
-    /* Mod skrin penuh: besarkan kawasan buku */
     :fullscreen #book{max-width:95vw;max-height:95vh}
     :-webkit-full-screen #book{max-width:95vw;max-height:95vh}
   </style>
 
-  <!-- ====== LIB PDF.js (CDN). Untuk offline: letak pdf.min.js & pdf.worker.min.js dalam folder yang sama dan ubah src. ====== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
-    // Untuk mod offline, gantikan URL CDN di bawah kepada './pdf.worker.min.js'
     if (window.pdfjsLib) {
-      try {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          (location.protocol === 'file:') ? './pdf.worker.min.js'
-          : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      } catch(e){}
+      try { pdfjsLib.GlobalWorkerOptions.workerSrc = (location.protocol === 'file:') ? './pdf.worker.min.js' : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch(e){}
     }
   </script>
 
-  <!-- ====== LIB StPageFlip (flip buku) ====== -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
-  <!-- Mammoth.js untuk baca DOCX → HTML (offline boleh muat turun dan tukar CDN) -->
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
 </head>
 <body>
   <header>
     <div class="brand"><span class="dot"></span> <span>FlipBuku HTML5</span></div>
     <div class="tools">
-      <label class="btn" title="Buka fail (PDF, DOCX, TXT, JPG/PNG/WEBP)">
-        <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" />
+      <label class="btn" title="Muat naik fail (PDF, DOCX, TXT, JPG/PNG/WEBP)">
+        <input id="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" />
         📁 Muat Naik Fail
       </label>
       <button id="prevBtn" class="btn" disabled>◀︎ Muka sebelum</button>
@@ -95,12 +84,12 @@
         <input id="goto" type="number" min="1" placeholder="Pergi ke muka…" />
         <button id="gotoBtn" class="btn" disabled>Pergi</button>
       </div>
-      <div class="file-note">Sokongan: <strong>PDF</strong>, <strong>DOCX</strong> (Word), <strong>TXT</strong>, <strong>JPG/PNG/WEBP</strong>. Untuk DOC/PPT, sila eksport ke PDF dahulu.</div>
+      <div class="hint">Sokongan: <strong>PDF</strong>, <strong>DOCX</strong> (Word), <strong>TXT</strong>, <strong>JPG/PNG/WEBP</strong>.<br/>Format lain (DOC, PPT/PPTX) → eksport ke PDF dahulu.</div>
       <h3>Pratonton</h3>
       <div id="thumbs" class="thumbs"></div>
     </aside>
 
-    <main class="stage">
+    <main id="stage" class="stage">
       <div id="bookWrap" class="book-wrap">
         <div id="book"></div>
       </div>
@@ -108,7 +97,7 @@
     </main>
   </div>
 
-  <div class="credit">Dibina dengan PDF.js & StPageFlip</div>
+  <div class="credit">Dibina dengan PDF.js, Mammoth & StPageFlip</div>
 
   <script>
     const fileInput = document.getElementById('fileInput');
@@ -125,142 +114,96 @@
     const bookEl = document.getElementById('book');
     const bookWrap = document.getElementById('bookWrap');
     const status = document.getElementById('status');
+    const stageEl = document.getElementById('stage');
 
     let pageFlip = null;
     let scale = 1;
 
-    const isImage = (name, type) => /\.(png|jpe?g|webp)$/i.test(name) || /^image\//.test(type);
+    const isImage = (name, type) => /(\.png|\.jpe?g|\.webp)$/i.test(name) || /^image\//.test(type);
     const isTxt = (name, type) => /\.txt$/i.test(name) || type === 'text/plain';
     const isDocx = (name, type) => /\.docx$/i.test(name) || /wordprocessingml\.document$/.test(type);
     const isPdf  = (name, type) => /\.pdf$/i.test(name) || type === 'application/pdf';
 
-    function enableControls(on){
-      [prevBtn,nextBtn,fsBtn,zoomIn,zoomOut,gotoBtn].forEach(b=>b.disabled=!on);
-    }
-
+    function enableControls(on){ [prevBtn,nextBtn,fsBtn,zoomIn,zoomOut,gotoBtn].forEach(b=>b.disabled=!on); }
     function setStatus(t){ status.textContent = t; }
-
-    function setZoom(newScale){
-      scale = Math.max(0.6, Math.min(1.8, newScale));
-      bookWrap.style.transform = `scale(${scale})`;
+    function setZoom(newScale){ scale = Math.max(0.5, Math.min(3, newScale)); bookWrap.style.transform = `scale(${scale})`; }
+    function fitToStage(mult=0.98){
+      const sW = stageEl.clientWidth || window.innerWidth;
+      const sH = stageEl.clientHeight || window.innerHeight;
+      const bW = bookEl.clientWidth || 1024;
+      const bH = bookEl.clientHeight || 720;
+      const k = Math.min(sW / bW, sH / bH) * mult;
+      setZoom(k);
     }
-
     zoomIn.addEventListener('click', ()=> setZoom(scale + 0.1));
     zoomOut.addEventListener('click', ()=> setZoom(scale - 0.1));
-
-    fsBtn.addEventListener('click', async ()=>{
-      const el = document.documentElement;
-      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{}); }
-      else { await document.exitFullscreen().catch(()=>{}); }
-    });
-
+    fsBtn.addEventListener('click', async ()=>{ const el = document.documentElement; if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{});} else { await document.exitFullscreen().catch(()=>{});} });
     prevBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
     nextBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipNext());
-    gotoBtn.addEventListener('click', ()=>{
-      if (!pageFlip) return;
-      const n = parseInt(gotoInput.value,10); if (!n) return;
-      // StPageFlip kira dari 0
-      pageFlip.turnToPage(Math.max(0, Math.min(pageFlip.getPageCount()-1, n-1)));
-    });
+    gotoBtn.addEventListener('click', ()=>{ if (!pageFlip) return; const n = parseInt(gotoInput.value,10); if (!n) return; pageFlip.turnToPage(Math.max(0, Math.min(pageFlip.getPageCount()-1, n-1))); });
 
-    function resetUI(){
-      thumbs.innerHTML = '';
-      bar.style.width = '0%';
-      info.textContent = 'Memuat muka surat…';
-      setStatus('Memuat…');
-      setZoom(1);
-      if (pageFlip){ pageFlip.destroy(); pageFlip = null; }
-      bookEl.innerHTML = '';
-      enableControls(false);
-    }
+    function resetUI(){ thumbs.innerHTML=''; bar.style.width='0%'; info.textContent='Memuat muka surat…'; setStatus('Memuat…'); setZoom(1); if (pageFlip){ pageFlip.destroy(); pageFlip=null;} bookEl.innerHTML=''; enableControls(false); }
 
     async function loadPDF(arrayBuffer){
       resetUI();
       const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-      const total = pdf.numPages;
-      info.textContent = `Dikesan ${total} muka surat.`;
-
-      // Pilih lebar output piawai (ketumpatan visual). Lebar tinggi akan ikut nisbah asal.
-      const targetWidth = 1200; // piksel per halaman (kualiti baik untuk skrin besar)
+      const total = pdf.numPages; info.textContent = `Dikesan ${total} muka surat.`;
+      const targetWidth = Math.max(1600, Math.min(2400, Math.floor(window.innerWidth * 1.5)));
       const images = [];
-
       for (let i=1;i<=total;i++){
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({scale: 1});
-        const scaleFactor = targetWidth / viewport.width;
-        const scaledViewport = page.getViewport({scale: scaleFactor});
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = Math.floor(scaledViewport.width);
-        canvas.height = Math.floor(scaledViewport.height);
+        const scaledViewport = page.getViewport({scale: targetWidth / viewport.width});
+        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+        canvas.width = Math.floor(scaledViewport.width); canvas.height = Math.floor(scaledViewport.height);
         await page.render({canvasContext: ctx, viewport: scaledViewport, intent:'print'}).promise;
-        const dataURL = canvas.toDataURL('image/jpeg', 0.92);
-        images.push(dataURL);
-
-        // Buat thumbnail
-        const th = document.createElement('img'); th.src = dataURL; th.title = `Muka ${i}`;
-        th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(i-1));
-        thumbs.appendChild(th);
-
-        // Kemaskini progress
-        const pct = Math.round((i/total)*100);
-        bar.style.width = pct + '%';
-        setStatus(`Memuat muka ${i}/${total}…`);
+        const dataURL = canvas.toDataURL('image/jpeg', 0.92); images.push(dataURL);
+        const th = document.createElement('img'); th.src = dataURL; th.title = `Muka ${i}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(i-1)); thumbs.appendChild(th);
+        bar.style.width = Math.round((i/total)*100)+'%'; setStatus(`Memuat muka ${i}/${total}…`);
       }
-
       initFlip(images);
     }
 
+    async function loadTXT(text){
+      resetUI(); const images = []; const pageW=1024, pageH=1448, margin=80, lineH=32; const maxWidth=pageW - margin*2; const words=(text||'').split(/\s+/);
+      let canvas=document.createElement('canvas'); canvas.width=pageW; canvas.height=pageH; let ctx=canvas.getContext('2d');
+      const start=()=>{ctx.fillStyle='#fff';ctx.fillRect(0,0,pageW,pageH);ctx.fillStyle='#000';ctx.font='20px Georgia, serif';}; start();
+      let x=margin, y=margin+20;
+      function newPage(){ images.push(canvas.toDataURL('image/jpeg',0.92)); const th=document.createElement('img'); th.src=images.at(-1); th.title=`Muka ${images.length}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(images.length-1)); thumbs.appendChild(th); canvas=document.createElement('canvas'); canvas.width=pageW; canvas.height=pageH; ctx=canvas.getContext('2d'); start(); x=margin; y=margin+20; }
+      for (const w of words){ const m=ctx.measureText(w+' '); if (x+m.width>margin+maxWidth){ x=margin; y+=lineH; } if (y+lineH>pageH-margin){ newPage(); } ctx.fillText(w+' ', x, y); x+=m.width; }
+      images.push(canvas.toDataURL('image/jpeg',0.92)); const th=document.createElement('img'); th.src=images.at(-1); th.title=`Muka ${images.length}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(images.length-1)); thumbs.appendChild(th); bar.style.width='100%'; initFlip(images);
+    }
+
+    async function loadImages(files){ resetUI(); const images=[]; let i=0; for (const f of files){ i++; const url=URL.createObjectURL(f); images.push(url); const th=document.createElement('img'); th.src=url; th.title=`Muka ${i}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(i-1)); thumbs.appendChild(th); bar.style.width=Math.round((i/files.length)*100)+'%'; } initFlip(images); }
+
+    async function loadDOCX(arrayBuffer){ resetUI(); info.textContent='Menukarkan DOCX ke HTML…'; try{ const result=await window.mammoth.convertToHtml({arrayBuffer}); const tmp=document.createElement('div'); tmp.innerHTML=result.value; const text=tmp.innerText||''; await loadTXT(text);}catch(e){ alert('DOCX tidak dapat diproses. Sila eksport ke PDF.'); console.error(e);} }
+
     function initFlip(images){
       setStatus('Menjana buku…');
-      // Saiz asas; PageFlip akan "stretch" ikut container
-      pageFlip = new St.PageFlip(bookEl, {
-        width: 1280,
-        height: 900,
-        size: 'stretch',
-        showCover: true,
-        maxShadowOpacity: 0.4,
-        mobileScrollSupport: false,
-        usePortrait: true,
-        drawShadow: true,
-      });
-
+      pageFlip = new St.PageFlip(bookEl, { width: 1280, height: 900, size: 'stretch', showCover: true, maxShadowOpacity: 0.4, mobileScrollSupport: false, usePortrait: true, drawShadow: true });
       pageFlip.loadFromImages(images);
       enableControls(true);
-      setZoom(1.12);
-      setStatus(`Siap • ${images.length} muka surat`);
-      info.textContent = `Siap dimuat: ${images.length} muka surat.`;
-
-      pageFlip.on('flip', (e)=>{
-        const pg = (e.data+1);
-        status.textContent = `Muka ${pg} / ${pageFlip.getPageCount()}`;
-      });
+      setTimeout(()=>{ fitToStage(0.98); pageFlip.update(); }, 50);
+      setStatus(`Siap • ${images.length} muka surat`); info.textContent = `Siap dimuat: ${images.length} muka surat.`;
+      pageFlip.on('flip', (e)=>{ const pg=(e.data+1); status.textContent = `Muka ${pg} / ${pageFlip.getPageCount()}`; });
     }
 
     fileInput.addEventListener('change', async (e)=>{
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      if (file.type !== 'application/pdf'){
-        alert('Sila pilih fail PDF.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = async (ev)=>{ await loadPDF(ev.target.result); };
-      reader.readAsArrayBuffer(file);
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+      if (files.length > 1 && files.every(f=>isImage(f.name,f.type))){ await loadImages(files); return; }
+      const f = files[0]; const name=f.name||''; const type=f.type||''; const reader=new FileReader();
+      if (isPdf(name,type)){ reader.onload=ev=> loadPDF(ev.target.result); reader.readAsArrayBuffer(f); }
+      else if (isDocx(name,type)){ reader.onload=ev=> loadDOCX(ev.target.result); reader.readAsArrayBuffer(f); }
+      else if (isTxt(name,type)){ reader.onload=ev=> loadTXT(ev.target.result); reader.readAsText(f,'utf-8'); }
+      else if (isImage(name,type)){ await loadImages([f]); }
+      else { alert('Format tidak disokong terus. Sila guna PDF, DOCX, TXT, atau imej. Untuk DOC/PPT, eksport ke PDF.'); }
     });
 
-    // Petua: seret & lepas fail PDF ke tetingkap
     window.addEventListener('dragover', e=>{ e.preventDefault(); });
-    window.addEventListener('drop', e=>{
-      e.preventDefault();
-      const f = e.dataTransfer.files[0];
-      if (f && f.type === 'application/pdf'){
-        const r = new FileReader();
-        r.onload = ev=> loadPDF(ev.target.result);
-        r.readAsArrayBuffer(f);
-      }
-    });
-  document.addEventListener('fullscreenchange', ()=>{ if(document.fullscreenElement){ setZoom(1.25); setTimeout(()=>pageFlip && pageFlip.update(), 200);} else { setZoom(1); setTimeout(()=>pageFlip && pageFlip.update(), 200);} });
+    window.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if (!f) return; const dt=new DataTransfer(); dt.items.add(f); fileInput.files=dt.files; const change=new Event('change'); fileInput.dispatchEvent(change); });
+    window.addEventListener('resize', ()=>{ fitToStage(0.98); pageFlip && pageFlip.update(); });
+    document.addEventListener('fullscreenchange', ()=>{ fitToStage(0.99); pageFlip && pageFlip.update(); });
   </script>
 </body>
 </html>
