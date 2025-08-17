@@ -152,8 +152,7 @@
     zoomOut.addEventListener('click', ()=> setZoom(scale - 0.1));
     fsBtn.addEventListener('click', async ()=>{
       const el = document.documentElement;
-      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{});} else { await document.exitFullscreen().catch(()=>{});} 
-    });
+      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{});
     // Kawalan overlay & papan kekunci
     const prevOver = document.getElementById('prevOver');
     const nextOver = document.getElementById('nextOver');
@@ -237,7 +236,7 @@
       fitToStage(fs ? 0.995 : 0.98); pageFlip && pageFlip.update();
       // Auto sorok hint selepas 3s
       if (fs && hint){ setTimeout(()=> hint.style.display='none', 3000); }
-    }); pageFlip && pageFlip.update(); });
+    });
   </script>
 </body>
 </html>
