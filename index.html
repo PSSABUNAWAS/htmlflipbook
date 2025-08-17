@@ -21,6 +21,8 @@
     .brand{display:flex;gap:10px;align-items:center;font-weight:600}
     .brand .dot{width:10px;height:10px;border-radius:999px;background:var(--accent)}
     .tools{display:flex;gap:8px;flex-wrap:wrap}
+    .sel{appearance:none;border:1px solid #0b2846;background:#0f3359;color:var(--text);padding:8px 10px;border-radius:10px;font-size:14px}
+    .sel:focus{outline:2px solid #124b82}
     .btn{appearance:none;border:1px solid #0b2846;background:#0f3359;color:var(--text);
       padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px}
     .btn:hover{border-color:#124b82}
@@ -77,6 +79,21 @@
         <input id="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" />
         📁 Muat Naik Fail
       </label>
+      <select id="paperSel" class="sel" title="Saiz kertas">
+        <option value="auto" selected>Saiz: Auto</option>
+        <option value="A5">A5</option>
+        <option value="A4">A4</option>
+        <option value="A3">A3</option>
+        <option value="Letter">Letter</option>
+      </select>
+      <select id="orientSel" class="sel" title="Orientasi">
+        <option value="portrait" selected>Potret</option>
+        <option value="landscape">Landskap</option>
+      </select>
+      <select id="spreadSel" class="sel" title="Mod muka">
+        <option value="double" selected>Dwi-muka</option>
+        <option value="single">Satu muka</option>
+      </select>
       <button id="prevBtn" class="btn" disabled>◀︎ Muka sebelum</button>
       <button id="nextBtn" class="btn" disabled>Muka seterusnya ▶︎</button>
       <button id="fsBtn" class="btn" disabled>⛶ Skrin penuh</button>
@@ -128,9 +145,27 @@
     const bookWrap = document.getElementById('bookWrap');
     const status = document.getElementById('status');
     const stageEl = document.getElementById('stage');
+    const paperSel = document.getElementById('paperSel');
+    const orientSel = document.getElementById('orientSel');
+    const spreadSel = document.getElementById('spreadSel');
 
     let pageFlip = null;
     let scale = 1;
+    let lastImages = null; // simpan hasil render untuk re-init mengikut saiz kertas
+
+    const PAPER_SIZES_MM = { A3:{w:297,h:420}, A4:{w:210,h:297}, A5:{w:148,h:210}, Letter:{w:216,h:279} };
+    function computePageSize(){
+      const p = paperSel.value; const o = orientSel.value; // portrait/landscape
+      // Asas: A4 1024×1448 untuk nisbah sqrt(2)
+      let w=1024, h=Math.round(1024*1.4142);
+      if (p !== 'auto' && PAPER_SIZES_MM[p]){
+        const mm = PAPER_SIZES_MM[p];
+        const ratio = mm.h / mm.w; // potret
+        h = Math.round(w * ratio);
+      }
+      if (o === 'landscape'){ const tmp=w; w=h; h=tmp; }
+      return {w,h};
+    }
 
     const isImage = (name, type) => /(\.png|\.jpe?g|\.webp)$/i.test(name) || /^image\//.test(type);
     const isTxt = (name, type) => /\.txt$/i.test(name) || type === 'text/plain';
@@ -152,8 +187,9 @@
     zoomOut.addEventListener('click', ()=> setZoom(scale - 0.1));
     fsBtn.addEventListener('click', async ()=>{
       const el = document.documentElement;
-      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{});
-    // Kawalan overlay & papan kekunci
+      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{}); }
+      else { await document.exitFullscreen().catch(()=>{}); }
+    });
     const prevOver = document.getElementById('prevOver');
     const nextOver = document.getElementById('nextOver');
     prevOver.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
@@ -162,7 +198,13 @@
       if (e.key === 'ArrowLeft') pageFlip && pageFlip.flipPrev();
       if (e.key === 'ArrowRight') pageFlip && pageFlip.flipNext();
       if (e.key.toLowerCase() === 'f') fsBtn.click();
-    });} else { await document.exitFullscreen().catch(()=>{});} });
+    });
+    // Tukar konfigurasi saiz kertas/orientasi/mode secara langsung
+    function rebuildFlip(){ if (!lastImages) return; if(pageFlip){ pageFlip.destroy(); pageFlip=null; } bookEl.innerHTML=''; initFlip(lastImages); setTimeout(()=>{ fitToStage(0.98); pageFlip && pageFlip.update(); }, 30); }
+    paperSel.addEventListener('change', rebuildFlip);
+    orientSel.addEventListener('change', rebuildFlip);
+    spreadSel.addEventListener('change', rebuildFlip);
+
     prevBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
     nextBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipNext());
     gotoBtn.addEventListener('click', ()=>{ if (!pageFlip) return; const n = parseInt(gotoInput.value,10); if (!n) return; pageFlip.turnToPage(Math.max(0, Math.min(pageFlip.getPageCount()-1, n-1))); });
@@ -173,7 +215,8 @@
       resetUI();
       const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
       const total = pdf.numPages; info.textContent = `Dikesan ${total} muka surat.`;
-      const targetWidth = Math.max(1600, Math.min(2400, Math.floor(window.innerWidth * 1.5)));
+      const est = computePageSize();
+      const targetWidth = Math.max(1400, Math.min(2600, Math.floor(est.w * 1.6)));
       const images = [];
       for (let i=1;i<=total;i++){
         const page = await pdf.getPage(i);
@@ -205,8 +248,20 @@
 
     function initFlip(images){
       setStatus('Menjana buku…');
-      pageFlip = new St.PageFlip(bookEl, { width: 1280, height: 900, size: 'stretch', showCover: true, maxShadowOpacity: 0.4, mobileScrollSupport: false, usePortrait: false, drawShadow: true });
+      const {w, h} = computePageSize();
+      const doubleMode = (spreadSel.value === 'double');
+      pageFlip = new St.PageFlip(bookEl, {
+        width: w,
+        height: h,
+        size: 'stretch',
+        showCover: true,
+        maxShadowOpacity: 0.4,
+        mobileScrollSupport: false,
+        usePortrait: !doubleMode,
+        drawShadow: true,
+      });
       pageFlip.loadFromImages(images);
+      lastImages = images;
       enableControls(true);
       setTimeout(()=>{ fitToStage(0.98); pageFlip.update(); }, 50);
       setStatus(`Siap • ${images.length} muka surat`); info.textContent = `Siap dimuat: ${images.length} muka surat.`;
