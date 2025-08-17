@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlipBuku HTML5 — Viewer Seakan Flash</title>
+
+  <!-- ====== GAYA ====== -->
+  <style>
+    :root{
+      --bg:#0a2540;       /* biru gelap */
+      --panel:#103d68;    /* biru panel */
+      --accent:#ffd34d;   /* kuning aksen */
+      --text:#eef6ff;     /* teks */
+      --muted:#b8d3f0;    /* teks lembut */
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;
+      background:linear-gradient(180deg,#123e70,#0f3359);padding:10px 14px;
+      border-bottom:2px solid #0b2846;position:sticky;top:0;z-index:5}
+    .brand{display:flex;gap:10px;align-items:center;font-weight:600}
+    .brand .dot{width:10px;height:10px;border-radius:999px;background:var(--accent)}
+    .tools{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{appearance:none;border:1px solid #0b2846;background:#0f3359;color:var(--text);
+      padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px}
+    .btn:hover{border-color:#124b82}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    input[type="file"]{display:none}
+    label.btn{display:inline-flex;align-items:center;gap:8px}
+    .file-note{font-size:12px;color:var(--muted);margin-top:6px}
+    .wrap{height:calc(100% - 62px);display:grid;grid-template-columns:280px 1fr}
+    .sidebar{background:#0e365f;border-right:1px solid #0b2846;padding:12px;overflow:auto}
+    .sidebar h3{margin:6px 0 10px 0;font-size:14px;color:var(--muted)}
+    .progress{height:8px;background:#0b2846;border-radius:10px;overflow:hidden;margin:8px 0}
+    .progress>span{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+    .thumbs{display:grid;gap:8px;grid-template-columns:repeat(2,1fr)}
+    .thumbs img{width:100%;border-radius:8px;border:1px solid #0b2846;cursor:pointer}
+    .stage{position:relative;display:grid;place-items:center;background:#09223d}
+    .book-wrap{transform-origin:center;transition:transform .15s ease}
+    #book{width:100%;height:100%;max-width:1200px;max-height:90vh}
+    .statusbar{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.35);
+      padding:6px 10px;border-radius:10px;font-size:12px;backdrop-filter:blur(4px)}
+    .jumpto{display:flex;gap:6px;align-items:center;margin-top:8px}
+    .jumpto input{width:90px;padding:6px;border-radius:8px;border:1px solid #0b2846;
+      background:#0f3359;color:var(--text)}
+    .hint{color:var(--muted);font-size:12px}
+    .credit{position:fixed;right:10px;bottom:10px;font-size:12px;color:var(--muted)}
+  </style>
+
+  <!-- ====== LIB PDF.js (CDN). Untuk offline: letak pdf.min.js & pdf.worker.min.js dalam folder yang sama dan ubah src. ====== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Untuk mod offline, gantikan URL CDN di bawah kepada './pdf.worker.min.js'
+    if (window.pdfjsLib) {
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          (location.protocol === 'file:') ? './pdf.worker.min.js'
+          : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      } catch(e){}
+    }
+  </script>
+
+  <!-- ====== LIB StPageFlip (flip buku) ====== -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
+  <!-- Mammoth.js untuk baca DOCX → HTML (offline boleh muat turun dan tukar CDN) -->
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span> <span>FlipBuku HTML5</span></div>
+    <div class="tools">
+      <label class="btn" title="Buka fail (PDF, DOCX, TXT, JPG/PNG/WEBP)">
+        <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" />
+        📁 Muat Naik Fail
+      </label>
+      <button id="prevBtn" class="btn" disabled>◀︎ Muka sebelum</button>
+      <button id="nextBtn" class="btn" disabled>Muka seterusnya ▶︎</button>
+      <button id="fsBtn" class="btn" disabled>⛶ Skrin penuh</button>
+      <button id="zoomOut" class="btn" disabled>− Kecil</button>
+      <button id="zoomIn" class="btn" disabled>+ Besar</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <aside class="sidebar">
+      <h3>Status Muat</h3>
+      <div class="progress"><span id="bar"></span></div>
+      <div id="info" class="hint">Tiada fail dibuka.</div>
+      <div class="jumpto">
+        <input id="goto" type="number" min="1" placeholder="Pergi ke muka…" />
+        <button id="gotoBtn" class="btn" disabled>Pergi</button>
+      </div>
+      <div class="file-note">Sokongan: <strong>PDF</strong>, <strong>DOCX</strong> (Word), <strong>TXT</strong>, <strong>JPG/PNG/WEBP</strong>. Untuk DOC/PPT, sila eksport ke PDF dahulu.</div>
+      <h3>Pratonton</h3>
+      <div id="thumbs" class="thumbs"></div>
+    </aside>
+
+    <main class="stage">
+      <div id="bookWrap" class="book-wrap">
+        <div id="book"></div>
+      </div>
+      <div class="statusbar" id="status">Sedia</div>
+    </main>
+  </div>
+
+  <div class="credit">Dibina dengan PDF.js & StPageFlip</div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const bar = document.getElementById('bar');
+    const info = document.getElementById('info');
+    const thumbs = document.getElementById('thumbs');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const fsBtn = document.getElementById('fsBtn');
+    const zoomIn = document.getElementById('zoomIn');
+    const zoomOut = document.getElementById('zoomOut');
+    const gotoInput = document.getElementById('goto');
+    const gotoBtn = document.getElementById('gotoBtn');
+    const bookEl = document.getElementById('book');
+    const bookWrap = document.getElementById('bookWrap');
+    const status = document.getElementById('status');
+
+    let pageFlip = null;
+    let scale = 1;
+
+    const isImage = (name, type) => /\.(png|jpe?g|webp)$/i.test(name) || /^image\//.test(type);
+    const isTxt = (name, type) => /\.txt$/i.test(name) || type === 'text/plain';
+    const isDocx = (name, type) => /\.docx$/i.test(name) || /wordprocessingml\.document$/.test(type);
+    const isPdf  = (name, type) => /\.pdf$/i.test(name) || type === 'application/pdf';
+
+    function enableControls(on){
+      [prevBtn,nextBtn,fsBtn,zoomIn,zoomOut,gotoBtn].forEach(b=>b.disabled=!on);
+    }
+
+    function setStatus(t){ status.textContent = t; }
+
+    function setZoom(newScale){
+      scale = Math.max(0.6, Math.min(1.8, newScale));
+      bookWrap.style.transform = `scale(${scale})`;
+    }
+
+    zoomIn.addEventListener('click', ()=> setZoom(scale + 0.1));
+    zoomOut.addEventListener('click', ()=> setZoom(scale - 0.1));
+
+    fsBtn.addEventListener('click', async ()=>{
+      const el = document.documentElement;
+      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{}); }
+      else { await document.exitFullscreen().catch(()=>{}); }
+    });
+
+    prevBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
+    nextBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipNext());
+    gotoBtn.addEventListener('click', ()=>{
+      if (!pageFlip) return;
+      const n = parseInt(gotoInput.value,10); if (!n) return;
+      // StPageFlip kira dari 0
+      pageFlip.turnToPage(Math.max(0, Math.min(pageFlip.getPageCount()-1, n-1)));
+    });
+
+    function resetUI(){
+      thumbs.innerHTML = '';
+      bar.style.width = '0%';
+      info.textContent = 'Memuat muka surat…';
+      setStatus('Memuat…');
+      setZoom(1);
+      if (pageFlip){ pageFlip.destroy(); pageFlip = null; }
+      bookEl.innerHTML = '';
+      enableControls(false);
+    }
+
+    async function loadPDF(arrayBuffer){
+      resetUI();
+      const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+      const total = pdf.numPages;
+      info.textContent = `Dikesan ${total} muka surat.`;
+
+      // Pilih lebar output piawai (ketumpatan visual). Lebar tinggi akan ikut nisbah asal.
+      const targetWidth = 1200; // piksel per halaman (kualiti baik untuk skrin besar)
+      const images = [];
+
+      for (let i=1;i<=total;i++){
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({scale: 1});
+        const scaleFactor = targetWidth / viewport.width;
+        const scaledViewport = page.getViewport({scale: scaleFactor});
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = Math.floor(scaledViewport.width);
+        canvas.height = Math.floor(scaledViewport.height);
+        await page.render({canvasContext: ctx, viewport: scaledViewport, intent:'print'}).promise;
+        const dataURL = canvas.toDataURL('image/jpeg', 0.92);
+        images.push(dataURL);
+
+        // Buat thumbnail
+        const th = document.createElement('img'); th.src = dataURL; th.title = `Muka ${i}`;
+        th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(i-1));
+        thumbs.appendChild(th);
+
+        // Kemaskini progress
+        const pct = Math.round((i/total)*100);
+        bar.style.width = pct + '%';
+        setStatus(`Memuat muka ${i}/${total}…`);
+      }
+
+      initFlip(images);
+    }
+
+    function initFlip(images){
+      setStatus('Menjana buku…');
+      // Saiz asas; PageFlip akan "stretch" ikut container
+      pageFlip = new St.PageFlip(bookEl, {
+        width: 1024,
+        height: 720,
+        size: 'stretch',
+        showCover: true,
+        maxShadowOpacity: 0.4,
+        mobileScrollSupport: false,
+        usePortrait: true,
+        drawShadow: true,
+      });
+
+      pageFlip.loadFromImages(images);
+      enableControls(true);
+      setStatus(`Siap • ${images.length} muka surat`);
+      info.textContent = `Siap dimuat: ${images.length} muka surat.`;
+
+      pageFlip.on('flip', (e)=>{
+        const pg = (e.data+1);
+        status.textContent = `Muka ${pg} / ${pageFlip.getPageCount()}`;
+      });
+    }
+
+    fileInput.addEventListener('change', async (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (file.type !== 'application/pdf'){
+        alert('Sila pilih fail PDF.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async (ev)=>{ await loadPDF(ev.target.result); };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Petua: seret & lepas fail PDF ke tetingkap
+    window.addEventListener('dragover', e=>{ e.preventDefault(); });
+    window.addEventListener('drop', e=>{
+      e.preventDefault();
+      const f = e.dataTransfer.files[0];
+      if (f && f.type === 'application/pdf'){
+        const r = new FileReader();
+        r.onload = ev=> loadPDF(ev.target.result);
+        r.readAsArrayBuffer(f);
+      }
+    });
+  </script>
+</body>
+</html>
