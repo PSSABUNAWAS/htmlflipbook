@@ -46,6 +46,16 @@
     .credit{position:fixed;right:10px;bottom:10px;font-size:12px;color:var(--muted)}
     :fullscreen #book{max-width:95vw;max-height:95vh}
     :-webkit-full-screen #book{max-width:95vw;max-height:95vh}
+      /* Mod bacaan skrin penuh */
+    body.fs-read header, body.fs-read .sidebar{display:none}
+    body.fs-read .wrap{grid-template-columns:1fr}
+    body.fs-read .stage{background:#000}
+    .fshint{display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;z-index:9999}
+    .turn{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:6;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.45);color:#fff;padding:10px 12px;border-radius:999px;backdrop-filter:blur(2px);cursor:pointer}
+    .turn:hover{background:rgba(0,0,0,.65)}
+    .turn.left{left:10px}
+    .turn.right{right:10px}
+    body.fs-read .turn{display:block}
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -89,10 +99,13 @@
       <div id="thumbs" class="thumbs"></div>
     </aside>
 
+    <div id="fsHint" class="fshint">Tekan <strong>Esc</strong> untuk keluar skrin penuh</div>
     <main id="stage" class="stage">
       <div id="bookWrap" class="book-wrap">
         <div id="book"></div>
       </div>
+      <button id="prevOver" class="turn left" aria-label="Halaman sebelum">◀</button>
+      <button id="nextOver" class="turn right" aria-label="Halaman seterusnya">▶</button>
       <div class="statusbar" id="status">Sedia</div>
     </main>
   </div>
@@ -137,7 +150,20 @@
     }
     zoomIn.addEventListener('click', ()=> setZoom(scale + 0.1));
     zoomOut.addEventListener('click', ()=> setZoom(scale - 0.1));
-    fsBtn.addEventListener('click', async ()=>{ const el = document.documentElement; if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{});} else { await document.exitFullscreen().catch(()=>{});} });
+    fsBtn.addEventListener('click', async ()=>{
+      const el = document.documentElement;
+      if (!document.fullscreenElement){ await el.requestFullscreen().catch(()=>{});} else { await document.exitFullscreen().catch(()=>{});} 
+    });
+    // Kawalan overlay & papan kekunci
+    const prevOver = document.getElementById('prevOver');
+    const nextOver = document.getElementById('nextOver');
+    prevOver.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
+    nextOver.addEventListener('click', ()=> pageFlip && pageFlip.flipNext());
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'ArrowLeft') pageFlip && pageFlip.flipPrev();
+      if (e.key === 'ArrowRight') pageFlip && pageFlip.flipNext();
+      if (e.key.toLowerCase() === 'f') fsBtn.click();
+    });} else { await document.exitFullscreen().catch(()=>{});} });
     prevBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
     nextBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipNext());
     gotoBtn.addEventListener('click', ()=>{ if (!pageFlip) return; const n = parseInt(gotoInput.value,10); if (!n) return; pageFlip.turnToPage(Math.max(0, Math.min(pageFlip.getPageCount()-1, n-1))); });
@@ -180,7 +206,7 @@
 
     function initFlip(images){
       setStatus('Menjana buku…');
-      pageFlip = new St.PageFlip(bookEl, { width: 1280, height: 900, size: 'stretch', showCover: true, maxShadowOpacity: 0.4, mobileScrollSupport: false, usePortrait: true, drawShadow: true });
+      pageFlip = new St.PageFlip(bookEl, { width: 1280, height: 900, size: 'stretch', showCover: true, maxShadowOpacity: 0.4, mobileScrollSupport: false, usePortrait: false, drawShadow: true });
       pageFlip.loadFromImages(images);
       enableControls(true);
       setTimeout(()=>{ fitToStage(0.98); pageFlip.update(); }, 50);
@@ -203,7 +229,15 @@
     window.addEventListener('dragover', e=>{ e.preventDefault(); });
     window.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if (!f) return; const dt=new DataTransfer(); dt.items.add(f); fileInput.files=dt.files; const change=new Event('change'); fileInput.dispatchEvent(change); });
     window.addEventListener('resize', ()=>{ fitToStage(0.98); pageFlip && pageFlip.update(); });
-    document.addEventListener('fullscreenchange', ()=>{ fitToStage(0.99); pageFlip && pageFlip.update(); });
+    document.addEventListener('fullscreenchange', ()=>{ 
+      const fs = !!document.fullscreenElement; 
+      document.body.classList.toggle('fs-read', fs);
+      const hint = document.getElementById('fsHint');
+      if (hint) hint.style.display = fs ? 'block' : 'none';
+      fitToStage(fs ? 0.995 : 0.98); pageFlip && pageFlip.update();
+      // Auto sorok hint selepas 3s
+      if (fs && hint){ setTimeout(()=> hint.style.display='none', 3000); }
+    }); pageFlip && pageFlip.update(); });
   </script>
 </body>
 </html>
