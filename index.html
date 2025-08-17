@@ -151,6 +151,7 @@
 
     let pageFlip = null;
     let scale = 1;
+    const DPR = Math.max(1, window.devicePixelRatio || 1);
     let lastImages = null; // simpan hasil render untuk re-init mengikut saiz kertas
 
     const PAPER_SIZES_MM = { A3:{w:297,h:420}, A4:{w:210,h:297}, A5:{w:148,h:210}, Letter:{w:216,h:279} };
@@ -216,7 +217,8 @@
       const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
       const total = pdf.numPages; info.textContent = `Dikesan ${total} muka surat.`;
       const est = computePageSize();
-      const targetWidth = Math.max(1400, Math.min(2600, Math.floor(est.w * 1.6)));
+      const fitW = stageEl.clientWidth || window.innerWidth;
+      const targetWidth = Math.min(4096, Math.max(2000, Math.floor(fitW * DPR * 1.2)));
       const images = [];
       for (let i=1;i<=total;i++){
         const page = await pdf.getPage(i);
@@ -225,7 +227,7 @@
         const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
         canvas.width = Math.floor(scaledViewport.width); canvas.height = Math.floor(scaledViewport.height);
         await page.render({canvasContext: ctx, viewport: scaledViewport, intent:'print'}).promise;
-        const dataURL = canvas.toDataURL('image/jpeg', 0.92); images.push(dataURL);
+        const dataURL = canvas.toDataURL('image/png'); images.push(dataURL);
         const th = document.createElement('img'); th.src = dataURL; th.title = `Muka ${i}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(i-1)); thumbs.appendChild(th);
         bar.style.width = Math.round((i/total)*100)+'%'; setStatus(`Memuat muka ${i}/${total}…`);
       }
@@ -237,9 +239,9 @@
       let canvas=document.createElement('canvas'); canvas.width=pageW; canvas.height=pageH; let ctx=canvas.getContext('2d');
       const start=()=>{ctx.fillStyle='#fff';ctx.fillRect(0,0,pageW,pageH);ctx.fillStyle='#000';ctx.font='20px Georgia, serif';}; start();
       let x=margin, y=margin+20;
-      function newPage(){ images.push(canvas.toDataURL('image/jpeg',0.92)); const th=document.createElement('img'); th.src=images.at(-1); th.title=`Muka ${images.length}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(images.length-1)); thumbs.appendChild(th); canvas=document.createElement('canvas'); canvas.width=pageW; canvas.height=pageH; ctx=canvas.getContext('2d'); start(); x=margin; y=margin+20; }
+      function newPage(){ images.push(canvas.toDataURL('image/png')); const th=document.createElement('img'); th.src=images.at(-1); th.title=`Muka ${images.length}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(images.length-1)); thumbs.appendChild(th); canvas=document.createElement('canvas'); canvas.width=pageW; canvas.height=pageH; ctx=canvas.getContext('2d'); start(); x=margin; y=margin+20; }
       for (const w of words){ const m=ctx.measureText(w+' '); if (x+m.width>margin+maxWidth){ x=margin; y+=lineH; } if (y+lineH>pageH-margin){ newPage(); } ctx.fillText(w+' ', x, y); x+=m.width; }
-      images.push(canvas.toDataURL('image/jpeg',0.92)); const th=document.createElement('img'); th.src=images.at(-1); th.title=`Muka ${images.length}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(images.length-1)); thumbs.appendChild(th); bar.style.width='100%'; initFlip(images);
+      images.push(canvas.toDataURL('image/png')); const th=document.createElement('img'); th.src=images.at(-1); th.title=`Muka ${images.length}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(images.length-1)); thumbs.appendChild(th); bar.style.width='100%'; initFlip(images);
     }
 
     async function loadImages(files){ resetUI(); const images=[]; let i=0; for (const f of files){ i++; const url=URL.createObjectURL(f); images.push(url); const th=document.createElement('img'); th.src=url; th.title=`Muka ${i}`; th.addEventListener('click', ()=> pageFlip && pageFlip.turnToPage(i-1)); thumbs.appendChild(th); bar.style.width=Math.round((i/files.length)*100)+'%'; } initFlip(images); }
