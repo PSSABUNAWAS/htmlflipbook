@@ -29,16 +29,16 @@
     input[type="file"]{display:none}
     label.btn{display:inline-flex;align-items:center;gap:8px}
     .file-note{font-size:12px;color:var(--muted);margin-top:6px}
-    .wrap{height:calc(100% - 62px);display:grid;grid-template-columns:280px 1fr}
+    .wrap{height:calc(100% - 62px);display:grid;grid-template-columns:220px 1fr}
     .sidebar{background:#0e365f;border-right:1px solid #0b2846;padding:12px;overflow:auto}
     .sidebar h3{margin:6px 0 10px 0;font-size:14px;color:var(--muted)}
     .progress{height:8px;background:#0b2846;border-radius:10px;overflow:hidden;margin:8px 0}
     .progress>span{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
-    .thumbs{display:grid;gap:8px;grid-template-columns:repeat(2,1fr)}
-    .thumbs img{width:100%;border-radius:8px;border:1px solid #0b2846;cursor:pointer}
+    .thumbs{display:grid;gap:8px;grid-template-columns:repeat(auto-fill, minmax(84px, 1fr))}
+    .thumbs img{width:100%;border-radius:8px;border:1px solid #0b2846;cursor:pointer;aspect-ratio:3/4;object-fit:cover}
     .stage{position:relative;display:grid;place-items:center;background:#09223d}
     .book-wrap{transform-origin:center;transition:transform .15s ease}
-    #book{width:100%;height:100%;max-width:1200px;max-height:90vh}
+    #book{width:100%;height:100%;max-width:1800px;max-height:96vh}
     .statusbar{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.35);
       padding:6px 10px;border-radius:10px;font-size:12px;backdrop-filter:blur(4px)}
     .jumpto{display:flex;gap:6px;align-items:center;margin-top:8px}
@@ -46,6 +46,9 @@
       background:#0f3359;color:var(--text)}
     .hint{color:var(--muted);font-size:12px}
     .credit{position:fixed;right:10px;bottom:10px;font-size:12px;color:var(--muted)}
+    /* Mod skrin penuh: besarkan kawasan buku */
+    :fullscreen #book{max-width:95vw;max-height:95vh}
+    :-webkit-full-screen #book{max-width:95vw;max-height:95vh}
   </style>
 
   <!-- ====== LIB PDF.js (CDN). Untuk offline: letak pdf.min.js & pdf.worker.min.js dalam folder yang sama dan ubah src. ====== -->
@@ -212,8 +215,8 @@
       setStatus('Menjana buku…');
       // Saiz asas; PageFlip akan "stretch" ikut container
       pageFlip = new St.PageFlip(bookEl, {
-        width: 1024,
-        height: 720,
+        width: 1280,
+        height: 900,
         size: 'stretch',
         showCover: true,
         maxShadowOpacity: 0.4,
@@ -224,6 +227,7 @@
 
       pageFlip.loadFromImages(images);
       enableControls(true);
+      setZoom(1.12);
       setStatus(`Siap • ${images.length} muka surat`);
       info.textContent = `Siap dimuat: ${images.length} muka surat.`;
 
@@ -256,6 +260,7 @@
         r.readAsArrayBuffer(f);
       }
     });
+  document.addEventListener('fullscreenchange', ()=>{ if(document.fullscreenElement){ setZoom(1.25); setTimeout(()=>pageFlip && pageFlip.update(), 200);} else { setZoom(1); setTimeout(()=>pageFlip && pageFlip.update(), 200);} });
   </script>
 </body>
 </html>
