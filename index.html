@@ -46,6 +46,8 @@
       background:#0f3359;color:var(--text)}
     .hint{color:var(--muted);font-size:12px}
     .credit{position:fixed;right:10px;bottom:10px;font-size:12px;color:var(--muted)}
+    /* Pastikan imej teks kelihatan tajam dan sedikit lebih terang */
+    #book img{image-rendering:-webkit-optimize-contrast;image-rendering:high-quality;filter:contrast(1.06) saturate(1.04);}
     :fullscreen #book{max-width:95vw;max-height:95vh}
     :-webkit-full-screen #book{max-width:95vw;max-height:95vh}
       /* Mod bacaan skrin penuh */
@@ -93,6 +95,11 @@
       <select id="spreadSel" class="sel" title="Mod muka">
         <option value="double" selected>Dwi-muka</option>
         <option value="single">Satu muka</option>
+      </select>
+      <select id="qualitySel" class="sel" title="Kualiti render">
+        <option value="standard">Kualiti: Standard</option>
+        <option value="sharp">Kualiti: Tajam</option>
+        <option value="ultra" selected>Kualiti: Ultra</option>
       </select>
       <button id="prevBtn" class="btn" disabled>◀︎ Muka sebelum</button>
       <button id="nextBtn" class="btn" disabled>Muka seterusnya ▶︎</button>
@@ -148,11 +155,21 @@
     const paperSel = document.getElementById('paperSel');
     const orientSel = document.getElementById('orientSel');
     const spreadSel = document.getElementById('spreadSel');
+    const qualitySel = document.getElementById('qualitySel'); = document.getElementById('paperSel');
+    const orientSel = document.getElementById('orientSel');
+    const spreadSel = document.getElementById('spreadSel');
 
     let pageFlip = null;
     let scale = 1;
     const DPR = Math.max(1, window.devicePixelRatio || 1);
     let lastImages = null; // simpan hasil render untuk re-init mengikut saiz kertas
+    let lastPdfBuffer = null; // simpan PDF untuk render semula pada kualiti tinggi
+
+    const QUALITY = {
+      standard: { factor: 1.2, max: 3200 },
+      sharp:    { factor: 2.0, max: 5000 },
+      ultra:    { factor: 2.8, max: 7000 }
+    };
 
     const PAPER_SIZES_MM = { A3:{w:297,h:420}, A4:{w:210,h:297}, A5:{w:148,h:210}, Letter:{w:216,h:279} };
     function computePageSize(){
@@ -205,6 +222,7 @@
     paperSel.addEventListener('change', rebuildFlip);
     orientSel.addEventListener('change', rebuildFlip);
     spreadSel.addEventListener('change', rebuildFlip);
+    qualitySel.addEventListener('change', ()=>{ if(lastPdfBuffer) renderPDF(lastPdfBuffer); });
 
     prevBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipPrev());
     nextBtn.addEventListener('click', ()=> pageFlip && pageFlip.flipNext());
@@ -213,12 +231,17 @@
     function resetUI(){ thumbs.innerHTML=''; bar.style.width='0%'; info.textContent='Memuat muka surat…'; setStatus('Memuat…'); setZoom(1); if (pageFlip){ pageFlip.destroy(); pageFlip=null;} bookEl.innerHTML=''; enableControls(false); }
 
     async function loadPDF(arrayBuffer){
+      lastPdfBuffer = arrayBuffer;
+      await renderPDF(arrayBuffer);
+    }
+
+    async function renderPDF(arrayBuffer){
       resetUI();
       const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
       const total = pdf.numPages; info.textContent = `Dikesan ${total} muka surat.`;
-      const est = computePageSize();
+      const q = QUALITY[qualitySel.value] || QUALITY.sharp;
       const fitW = stageEl.clientWidth || window.innerWidth;
-      const targetWidth = Math.min(4096, Math.max(2000, Math.floor(fitW * DPR * 1.2)));
+      const targetWidth = Math.min(q.max, Math.max(1800, Math.floor(fitW * DPR * q.factor)));
       const images = [];
       for (let i=1;i<=total;i++){
         const page = await pdf.getPage(i);
@@ -290,8 +313,9 @@
       document.body.classList.toggle('fs-read', fs);
       const hint = document.getElementById('fsHint');
       if (hint) hint.style.display = fs ? 'block' : 'none';
-      fitToStage(fs ? 0.995 : 0.98); pageFlip && pageFlip.update();
-      // Auto sorok hint selepas 3s
+      // Ketika masuk skrin penuh, render semula pada resolusi lebih tinggi
+      if (lastPdfBuffer) { renderPDF(lastPdfBuffer); }
+      else { fitToStage(fs ? 0.995 : 0.98); pageFlip && pageFlip.update(); }
       if (fs && hint){ setTimeout(()=> hint.style.display='none', 3000); }
     });
   </script>
